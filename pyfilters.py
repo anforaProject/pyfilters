@@ -7,7 +7,7 @@ class Filter:
         self.image = Image.open(path)
         self.output = output
         
-    def contrast(self,image):
+    def contrast(self,image):        
         return ImageEnhance.Contrast(image)
 
     def color(self,image):
@@ -50,6 +50,28 @@ class Filter:
                 pixels[px, py] = (tr,tg,tb)
 
         return image.convert(mode)
+
+    def sepia_cv(self, image):
+        """
+        Optimization on the sepia filter using cv2 
+        """
+        
+        import cv2
+
+        # Load the image as an array so cv knows how to work with it
+        img = np.array(image)
+
+        # Apply a transformation where we multiply each pixel rgb with the matrix for the sepia
+        filt = cv2.transform( img, np.matrix([[ 0.393, 0.769, 0.189],
+                                              [ 0.349, 0.686, 0.168],
+                                              [ 0.272, 0.534, 0.131]                                  
+        ]) )
+
+        # Check wich entries have a value greather than 255 and set it to 255
+        filt[np.where(filt>255)] = 255
+
+        # Create an image from the array 
+        return Image.fromarray(filt)
                 
     def rgb_to_hsv(self,rgb):
         # Translated from source of colorsys.rgb_to_hsv
@@ -120,17 +142,55 @@ class Filter:
         self.prod = prod
 
     def filter_early_bird(self):
-        prod = self.sepia(self.image)
+        prod = self.sepia_cv(self.image)
         prod = self.contrast(prod).enhance(0.9)
         prod = self.brightness(prod).enhance(1)
         prod = self.color(prod).enhance(1)
         self.prod = prod
+
+    def filter_gingham(self):
+        prod = self.contrast(self.image).enhance(1.0)
+        prod = self.brightness(prod).enhance(1.05)
+        prod = self.color(prod).enhance(1)
+        prod = self.hueShift(prod, 350)
+
+        self.prod = prod
+
+    def filter_hudson(self):
+
+        prod = self.contrast(self.image).enhance(0.9)
+        prod = self.brightness(prod).enhance(1.2)
+        prod = self.color(prod).enhance(1.1)
+
+        self.prod = prod
+
+
+    def filter_inkwell(self):
+
+        prod = self.contrast(self.image).enhance(1.1)
+        prod = self.brightness(prod).enhance(1.1)
+        prod = self.color(prod).enhance(1)
+        prod = self.sepia_cv(prod)
+
+        # Convert image to black and white
+        prod = prod.convert('L')
+        self.prod = prod
+
+    def filter_sepia(self):
+        self.prod = self.sepia_cv(self.image)
         
     def generate(self):
-        self.prod.save(self.output)
 
+        if self.prod:
+            self.prod.save(self.output)
+        else:
+            self.image.save(self.output)
+            
 t = Filter('test.jpg', 'out.jpg')
 #t.filter_aden()
 #t.filter_clarendon()
-t.filter_early_bird()
+#t.filter_early_bird()
+#t.filter_gingham()
+t.filter_inkwell()
+#t.filter_sepia()
 t.generate()
