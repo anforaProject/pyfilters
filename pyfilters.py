@@ -1,5 +1,12 @@
 from PIL import (ImageEnhance, Image)
 import numpy as np
+from cv2 import transform
+import math
+
+from typing import Tuple
+
+Color = Tuple[int, int, int]
+Size = Tuple[int, int]
 
 class Filter:
 
@@ -51,22 +58,24 @@ class Filter:
 
         return image.convert(mode)
 
-    def sepia_cv(self, image):
+    def sepia_cv(self, image, amount = 1):
         """
         Optimization on the sepia filter using cv2 
         """
         
         import cv2
 
+        matrix = [[ 0.393 + 0.607 * (1 - amount), 0.769 - 0.769 * (1 - amount), 0.189 - 0.189 * (1 - amount)],
+                  [ 0.349 - 0.349 * (1 - amount), 0.686 + 0.314 * (1 - amount), 0.168 - 0.168 * (1 - amount)],
+                  [ 0.272 - 0.349 * (1 - amount), 0.534 - 0.534 * (1 - amount), 0.131 + 0.869 * (1 - amount)]                                  
+        ]
+
         # Load the image as an array so cv knows how to work with it
         img = np.array(image)
 
         # Apply a transformation where we multiply each pixel rgb with the matrix for the sepia
-        filt = cv2.transform( img, np.matrix([[ 0.393, 0.769, 0.189],
-                                              [ 0.349, 0.686, 0.168],
-                                              [ 0.272, 0.534, 0.131]                                  
-        ]) )
-
+        filt = transform( img, np.matrix(matrix) )
+        
         # Check wich entries have a value greather than 255 and set it to 255
         filt[np.where(filt>255)] = 255
 
@@ -125,6 +134,7 @@ class Filter:
         hsv[..., 0] = (hsv[..., 0]+(amount/360)) % 1.0
         rgb = self.hsv_to_rgb(hsv)
         return Image.fromarray(rgb, 'RGB')
+
         
     def filter_aden(self):
 
@@ -178,19 +188,39 @@ class Filter:
 
     def filter_sepia(self):
         self.prod = self.sepia_cv(self.image)
+
+    def filter_xpro2(self):
+
+        prod = self.contrast(self.image).enhance(1)
+        prod = self.brightness(prod).enhance(1)
+        prod = self.color(prod).enhance(1)
+        prod = self.sepia_cv(prod, amount = 0.41)
+        
+        # TODO: Apply gradient
+        self.prod = prod
+
+    def filter_valencia(self):
+        prod = self.contrast(self.image).enhance(1.08)
+        prod = self.brightness(prod).enhance(1.08)
+        prod = self.color(prod).enhance(1)
+        prod = self.sepia_cv(prod, amount = 0.08)
+
+        self.prod = prod
         
     def generate(self):
 
-        if self.prod:
+        try:
             self.prod.save(self.output)
-        else:
+        except:
             self.image.save(self.output)
             
-t = Filter('test.jpg', 'out.jpg')
+#t = Filter('test.jpg', 'out.jpg')
 #t.filter_aden()
 #t.filter_clarendon()
 #t.filter_early_bird()
 #t.filter_gingham()
-t.filter_inkwell()
+#t.filter_inkwell()
 #t.filter_sepia()
-t.generate()
+#t.filter_xpro2()
+#t.filter_valencia()
+#t.generate()
