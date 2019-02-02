@@ -19,23 +19,38 @@ class Filter:
     def sharpness(self,image):
         return ImageEnhance.Sharpness(image)
 
-    def sepia(self,image):
-        im = None
-        def make_linear_ramp(white):
-            # putpalette expects [r,g,b,r,g,b,...]
-            ramp = []
-            r, g, b = white
-            for i in range(255):
-                ramp.extend((r*i/255, g*i/255, b*i/255))
-            return ramp
+    def sepia(self, image):
+        width, height = image.size
+        img = image
+        mode = None
 
-        im = image.convert("L")
-        sepia = make_linear_ramp((255, 240, 192))
+        
+        if image.mode != "RGB":
+            mode = image.mode
+            img = image.convert('RGB')
+        pixels = img.load() # create the pixel map
+        
+        for py in range(height):
+            for px in range(width):
+                r, g, b = img.getpixel((px, py))
 
-        im.putpalette(sepia)
-        im.convert("RGB")
-        return im
+                tr = int(0.393 * r + 0.769 * g + 0.189 * b)
+                tg = int(0.349 * r + 0.686 * g + 0.168 * b)
+                tb = int(0.272 * r + 0.534 * g + 0.131 * b)
+                
+                if tr > 255:
+                    tr = 255
 
+                if tg > 255:
+                    tg = 255
+
+                if tb > 255:
+                    tb = 255
+
+                pixels[px, py] = (tr,tg,tb)
+
+        return image.convert(mode)
+                
     def rgb_to_hsv(self,rgb):
         # Translated from source of colorsys.rgb_to_hsv
         # r,g,b should be a numpy arrays with values between 0 and 255
@@ -109,12 +124,13 @@ class Filter:
         prod = self.contrast(prod).enhance(0.9)
         prod = self.brightness(prod).enhance(1)
         prod = self.color(prod).enhance(1)
+        self.prod = prod
         
     def generate(self):
         self.prod.save(self.output)
 
 t = Filter('test.jpg', 'out.jpg')
 #t.filter_aden()
-t.filter_clarendon()
-#t.filter_early_bird()
+#t.filter_clarendon()
+t.filter_early_bird()
 t.generate()
